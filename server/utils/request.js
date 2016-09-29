@@ -3,7 +3,7 @@ var request = require("request");
 var Promise = require("bluebird");
 
 var defaultRequestOptions = {
-    baseUrl: 'http://https://gcm-http.googleapis.com/gcm/send',
+    baseUrl: 'https://gcm-http.googleapis.com/gcm/send',
     json: true
 };
 

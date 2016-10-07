@@ -61,7 +61,7 @@ module.exports = {
                     return reject(err);
                 }
                 if (message.statusCode !== 200) {
-                    return reject(Error(responseBody.message));
+                    return reject(Error(responseBody));
                 }
                 else {
                     resolve(responseBody);

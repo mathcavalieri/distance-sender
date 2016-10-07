@@ -16,39 +16,54 @@ function writeAndDrain(data, callback) {
   });
 }
 
-port.on('data', function (data) {
+function notificate(messageTemplate) {
   var notifications = [];
+  Client.findAsync({})
+    .then(function (list) {
+      list.forEach(function (client) {
+        messageTemplate.to = client.token;
+        notifications.push(request.post(process.env.API_KEY, '', messageTemplate));
+      });
+      return notifications;
+    })
+    .all()
+    .then(function () {
+      console.log('Sent to ' + notifications.length + ' client(s)');
+    })
+    .catch(function (err) {
+      throw err;
+    });
+}
+
+port.on('data', function (data) {
+  var message;
   if (/value:/.test(data)) {
     data = data.replace(/value:/, "");
-    var message = {
+    message = {
+      data: {
+        distance: parseInt(data)
+      },
+      to: process.env.DEBUG_TOKEN
+    };
+    notificate(message);
+  }
+
+  if (/emerg:/.test(data)) {
+    data = data.replace(/emerg:/, "");
+    message = {
       data: {
         distance: parseInt(data)
       },
       to: process.env.DEBUG_TOKEN,
       notification: {
         body: parseInt(data),
-        title: "Update!",
+        title: "Emergency!",
         icon: "myicon"
       },
-      "collapse_key": "distance"
+      collapse_key: "1",
+      priority: "high"
     };
-    Client.findAsync({})
-      .then(function (list) {
-        list.forEach(function (client) {
-          message.to = client.token;
-          notifications.push(request.post(process.env.API_KEY, '', message));
-        });
-        return notifications;
-      })
-      .all()
-      .then(function () {
-        console.log(arguments);
-        console.log('Sent to ' + notifications.length + ' client(s)');
-      })
-      .catch(function (err) {
-        throw err;
-      });
-
+    notificate(message);
   }
 });
 
@@ -61,8 +76,16 @@ port.open(function (err) {
 });
 
 module.exports = function (app) {
+  app.use(function (req, res, next) {
+    if (req.get("Authorization") === process.env.PASSWORD) {
+      next();
+    }
+    else {
+      res.status(401).json({ message: "Unauthorized" });
+    }
+  });
 
-  app.route('/test')
+  app.route('/check')
     .post(function (req, res) {
       writeAndDrain('v', function () { });
       res.json({ ok: 'ok' });
@@ -70,20 +93,20 @@ module.exports = function (app) {
 
   app.route('/register')
     .post(function (req, res) {
-      if (!req.body.token) {
-        res.status(400).json({ message: 'Client token not provided.' });
-      }
-      else {
-        var client = new Client({ token: req.body.token });
-        client.saveAsync()
-          .then(function () {
-            console.log(arguments);
-            res.json();
-          })
-          .catch(function (err) {
-            res.status(500).json(err);
-          });
-      }
+        if (!req.body.token) {
+          res.status(400).json({ message: 'Client token not provided.' });
+        }
+        else {
+          var client = new Client({ token: req.body.token });
+          client.saveAsync()
+            .then(function () {
+              console.log(arguments);
+              res.json();
+            })
+            .catch(function (err) {
+              res.status(500).json(err);
+            });
+        }
     });
 
   app.route('/delete')

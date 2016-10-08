@@ -9,6 +9,7 @@ var port = new SerialPort(portName, {
   autoOpen: false,
   parser: SerialPort.parsers.readline('\n')
 });
+var watchers = [];
 
 function writeAndDrain(data, callback) {
   port.write(data, function () {
@@ -39,13 +40,11 @@ port.on('data', function (data) {
   var message;
   if (/value:/.test(data)) {
     data = data.replace(/value:/, "");
-    message = {
-      data: {
-        distance: parseInt(data)
-      },
-      to: process.env.DEBUG_TOKEN
-    };
-    notificate(message);
+    //"notify" the watchers
+    watchers.forEach(function (res) {
+      res.json({ distance: parseInt(data) });
+    });
+    watchers = [];
   }
 
   if (/emerg:/.test(data)) {
@@ -88,25 +87,31 @@ module.exports = function (app) {
   app.route('/check')
     .post(function (req, res) {
       writeAndDrain('v', function () { });
-      res.json({ ok: 'ok' });
+      //register this response as a watcher to the Arduino response
+      watchers.push(res);
+      setTimeout(function () {
+        if (watchers.length !== 0) {
+          res.status(500).json({ message: "Error on the Arduino communication." });
+        }
+      }, 15000);
     });
 
   app.route('/register')
     .post(function (req, res) {
-        if (!req.body.token) {
-          res.status(400).json({ message: 'Client token not provided.' });
-        }
-        else {
-          var client = new Client({ token: req.body.token });
-          client.saveAsync()
-            .then(function () {
-              console.log(arguments);
-              res.json();
-            })
-            .catch(function (err) {
-              res.status(500).json(err);
-            });
-        }
+      if (!req.body.token) {
+        res.status(400).json({ message: 'Client token not provided.' });
+      }
+      else {
+        var client = new Client({ token: req.body.token });
+        client.saveAsync()
+          .then(function () {
+            console.log(arguments);
+            res.json();
+          })
+          .catch(function (err) {
+            res.status(500).json(err);
+          });
+      }
     });
 
   app.route('/delete')

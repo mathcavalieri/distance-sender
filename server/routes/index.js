@@ -23,13 +23,16 @@ module.exports = function (app) {
 
   app.route('/check')
     .post(function (req, res) {
+      var returned = false;
       arduino.sendString('v')
         .catch(function (err) {
           console.log(err);
         });
-      arduino.registerWatcher(res);
+      arduino.registerWatcher(res, function () {
+        returned = true;
+      });
       setTimeout(function () {
-        if (arduino.getWatchers().length !== 0) {
+        if (!returned) {
           try {
             res.status(500).json({ message: "Error on the Arduino communication." });
             arduino.clearWatchers();
@@ -39,8 +42,7 @@ module.exports = function (app) {
           }
           finally {
             arduino.connect()
-              .catch(function (err) {
-                console.log(err);
+              .catch(function () {
               });
           }
         }
@@ -49,6 +51,7 @@ module.exports = function (app) {
 
   app.route('/register')
     .post(function (req, res) {
+      var sentResponse = false;
       if (!req.body.token) {
         res.status(400).json({ message: 'Client token not provided.' });
       }
@@ -57,6 +60,7 @@ module.exports = function (app) {
           .then(function (doc) {
             if (doc) {
               res.status(400).json({ message: "Already registered." });
+              sentResponse = true;
             }
             else {
               var client = new Client({ token: req.body.token });
@@ -64,11 +68,12 @@ module.exports = function (app) {
             }
           })
           .then(function () {
-            console.log(arguments);
-            res.json();
+            if (!sentResponse) {
+              res.json({ message: 'Success.' });
+            }
           })
           .catch(function (err) {
-            res.status(500).json(err);
+            console.log(err);
           });
       }
     });

@@ -17,60 +17,68 @@ function writeAndDrain(data, callback) {
 }
 
 port.on('data', function (data) {
-    var message;
-    if (/value:/.test(data)) {
-        data = data.replace(/value:/, "");
+    var emergMessage = {
+        data: {
+            temperature: parseInt(data)
+        },
+        to: process.env.DEBUG_TOKEN,
+        notification: {
+            body: parseInt(data),
+            title: "Emergency!",
+            icon: "myicon"
+        },
+        collapse_key: "1",
+        priority: "high"
+    };
+    if (/temp:/.test(data)) {
+        data = data.replace(/temp:/, "");
+        data = parseFloat(data);
         //"notify" the watchers
-        watchers.forEach(function (res) {
+        watchers.forEach(function (watcher) {
             try {
-                res.json({ distance: parseInt(data) });
+                watcher.res.json({ temperature: data });
+                watcher.callback(data);
             } catch (error) {
 
             }
         });
         watchers = [];
+        //simulate an emergency value
+        setTimeout(function () {
+            emergMessage.data.temperature = 100;
+            emergMessage.notification.body = 100;
+            gcm.notificate(emergMessage);
+        }, 5000);
     }
 
     if (/emerg:/.test(data)) {
         data = data.replace(/emerg:/, "");
-        message = {
-            data: {
-                distance: parseInt(data)
-            },
-            to: process.env.DEBUG_TOKEN,
-            notification: {
-                body: parseInt(data),
-                title: "Emergency!",
-                icon: "myicon"
-            },
-            collapse_key: "1",
-            priority: "high"
-        };
-        gcm.notificate(message);
+        emergMessage.data.temperature = parseInt(data);
+        emergMessage.notification.body = parseInt(data);
+        gcm.notificate(emergMessage);
+    }
+    if (/motion:/.test(data)) {
+        console.log(new Date(), data.replace(/motion:/, ""));
     }
 });
 function connectToArduino() {
     return new Promise(function (resolve, reject) {
         try {
-            port.close();
-        } catch (error) {
-            //must already have been closed
-            console.log(error);
-        }
-        try {
-            port.open(function (err) {
-                if (err) {
-                    console.log('Error opening port: ', err.message);
-                    reject(err);
-                }
-                else {
-                    console.log('Port opened.');
-                    resolve();
-                }
-            });
+            if (!port.opening) {
+                port.open(function (err) {
+                    if (err) {
+                        console.log('Error opening port: ', err.message);
+
+                        reject(err);
+                    }
+                    else {
+                        console.log('Port opened.');
+                        resolve();
+                    }
+                });
+            }
         }
         catch (err) {
-            console.log(err);
         }
 
     });
@@ -92,8 +100,8 @@ module.exports = {
         });
     },
 
-    registerWatcher: function (watcher) {
-        watchers.push(watcher);
+    registerWatcher: function (watcher, cb) {
+        watchers.push({ res: watcher, callback: cb });
         return this;
     },
 

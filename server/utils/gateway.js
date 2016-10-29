@@ -90,7 +90,6 @@ module.exports = {
                 })
                 .then(function (ip) {
                     currentIp = ip;
-                    console.log(ip);
 
                     if (!lastIp) {
                         return new Ip({ ip: ip }).saveAsync();
@@ -113,7 +112,7 @@ module.exports = {
                             },
                             priority: "high"
                         });
-                        console.log('IP changed. Sending notification.');
+                        console.log('IP changed (' + currentIp + '). Sending notification.');
                         lastIp.ip = currentIp;
                         return lastIp.saveAsync();
                     }

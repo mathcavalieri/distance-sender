@@ -2,14 +2,16 @@
 
 var Client = require("../config/database").client;
 var arduino = require("../arduino/arduino");
-var gateway = require("../utils/gateway");
 
+//Leave this commented to ignore the gateway IP watch functionality, which is 
+//specific to my case.
+//var gateway = require("../utils/gateway");
+//gateway.start();
 
 arduino.connect()
   .catch(function (err) {
     console.log(err);
   });
-gateway.start();
 
 module.exports = function (app) {
   app.use(function (req, res, next) {

@@ -4,7 +4,7 @@ var SerialPort = require("serialport");
 var Promise = require('bluebird');
 var watchers = [];
 var gcm = require("../utils/gcm");
-var port = new SerialPort('COM4', {
+var port = new SerialPort(process.env.ARDUINO_SERIAL_PORT, {
     baudRate: 9600,
     autoOpen: false,
     parser: SerialPort.parsers.readline('\n')
